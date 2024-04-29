@@ -1,91 +1,111 @@
 # PHDB
-### PHDB is PHP Database Management Library
-PHDB is a PHP library for managing basic database operations in an advanced yet user-friendly way. It provides methods for connecting to a database, performing CRUD operations, executing custom SQL queries, creating, dropping, altering tables, and more.
+### PHDB is a PHP Database Management Library
+PHDB is a library for basic database management operations in PHP applications. It provides simple and convenient methods for connecting to a database, performing CRUD operations, executing queries, and managing database tables.
 
 # Features
 * Connect: Establish a connection to the database.
-* Add: Insert a record into the database table.
-* Update: Update existing records in the database table.
-* Delete: Remove records from the database table.
-* Select: Retrieve records from the database table.
-* Specific Selection: Execute custom SQL queries and retrieve records.
+* Add: Insert a new record into the database.
+* Update: Update records in the database.
+* Delete: Delete records from the database.
+* Select: Retrieve records from the database.
+* Specific Select: Perform a specific selection from the database.
 * Get Value: Retrieve a single value from the database.
-* Get Specific Value: Execute a custom SQL query and retrieve a single value.
+* Get Specific Value: Retrieve a specific value from the database.
 * Create Table: Create a new table in the database.
 * Drop Table: Drop an existing table from the database.
-* Alter Table: Alter the structure of an existing table in the database.
-* Truncate Table: Remove all records from a table while preserving its structure.
-* Disconnect: Close the connection to the database.
+* Alter Table: Alter an existing table in the database.
+* Truncate Table: Remove all records from a table.
+* Disconnect: Close the database connection.
 
 # Usage
-### Connecting to the Database
-To connect to a database:
+### Connect to the Database
+To connect to the database:
 ```
-PHDB::connect('localhost', 'my_database', 'username', 'password');
-```
-
-### Adding a Record
-To insert a record into a database table:
-```
-PHDB::add('users', ['name' => 'John', 'email' => 'john@example.com']);
+PHDB::$host = 'localhost';
+PHDB::$username = 'username';
+PHDB::$password = 'password';
+PHDB::$dbname = 'database_name';
+PHDB::connect();
 ```
 
-### Updating Records
-To update records in a database table:
+### Add a Record
+To insert a new record into the database:
 ```
-PHDB::update('users', ['name' => 'Jane'], 'id = :id', ['id' => 1]);
-```
-
-### Deleting Records
-To delete records from a database table:
-```
-PHDB::delete('users', 'id = :id', ['id' => 1]);
+$data = ['name' => 'John', 'email' => 'john@example.com'];
+PHDB::insert('users', $data);
 ```
 
-### Selecting Records
-To select records from a database table:
+### Update Records
+To update records in the database:
 ```
-$users = PHDB::select('users', '*', 'age > :age', ['age' => 18]);
+$data = ['name' => 'Jane', 'email' => 'jane@example.com'];
+PHDB::update('users', $data, 'id = 1');
 ```
 
-### Performing Specific Selection
+### Delete Records
+To delete records from the database:
+```
+PHDB::delete('users', 'id = 1');
+```
+
+### Select Records
+To retrieve records from the database:
+```
+$result = PHDB::select('users', '*', 'id = 1');
+while ($row = $result->fetch_assoc()) {
+// Process the fetched row
+}
+```
+
+### Specific Selection
 To perform a specific selection from the database:
 ```
-$active_users = PHDB::specificSelect('SELECT * FROM users WHERE active = :active', ['active' => 1]);
+$result = PHDB::specificSelect('SELECT * FROM users WHERE id = 1');
+while ($row = $result->fetch_assoc()) {
+// Process the fetched row
+}
 ```
 
-### Getting a Single Value
-To get a single value from the database:
+### Get Value
+To retrieve a single value from the database:
 ```
-$count = PHDB::getValue('users', 'COUNT(*)', 'age > :age', ['age' => 18]);
-```
-
-### Getting a Specific Value
-To get a specific value from the database:
-```
-$avg_age = PHDB::getSpecificValue('SELECT AVG(age) FROM users');
+$value = PHDB::getValue('users', 'name', 'id = 1');
 ```
 
-### Creating a Table
+### Get Specific Value
+To retrieve a specific value from the database:
+```
+$value = PHDB::getSpecificValue('SELECT name FROM users WHERE id = 1');
+```
+
+### Create Table
 To create a new table in the database:
 ```
-PHDB::createTable('products', ['id' => 'INT AUTO_INCREMENT PRIMARY KEY', 'name' => 'VARCHAR(255)', 'price' => 'DECIMAL(10,2)']);
+$columns = ['id' => 'INT AUTO_INCREMENT PRIMARY KEY', 'name' => 'VARCHAR(255)', 'email' => 'VARCHAR(255)'];
+PHDB::createTable('users', $columns);
 ```
 
-### Dropping a Table
-To drop a table from the database:
+### Drop Table
+To drop an existing table from the database:
 ```
-PHDB::dropTable('products');
-```
-
-### Updating a Table
-To alter a table in the database:
-```
-PHDB::alterTable('users', ['ADD COLUMN address VARCHAR(255)']);
+PHDB::dropTable('users');
 ```
 
-### Disconnecting from the Database
-To disconnect from the database:
+### Alter Table
+To alter an existing table in the database:
+```
+$changes = ['ADD COLUMN age INT', 'DROP COLUMN address'];
+PHDB::alterTable('users', $changes);
+```
+
+### Truncate Table
+To remove all records from a table:
+```
+PHDB::truncateTable('users');
+```
+
+### Disconnect from the Database
+To close the database connection:
 ```
 PHDB::disconnect();
 ```
