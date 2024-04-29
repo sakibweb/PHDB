@@ -1,5 +1,5 @@
 # PHDB
-### PHDB: PHP Database Management Library
+### PHDB is PHP Database Management Library
 PHDB is a PHP library for basic database management operations. It offers convenient methods to connect to a database, perform CRUD operations, execute queries, and manage database tables. This library aims to provide ease of use and flexibility for database interaction in PHP applications.
 
 # Features
