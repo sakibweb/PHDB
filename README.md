@@ -1,13 +1,15 @@
 # PHDB
-### PHDB is a PHP Database Management Library
-PHDB is a library for basic database management operations in PHP applications. It provides simple and convenient methods for connecting to a database, performing CRUD operations, executing queries, and managing database tables.
+### PHDB: PHP Database Management Library
+PHDB is a PHP library for basic database management operations. It offers convenient methods to connect to a database, perform CRUD operations, execute queries, and manage database tables. This library aims to provide ease of use and flexibility for database interaction in PHP applications.
 
 # Features
 * Connect: Establish a connection to the database.
-* Add: Insert a new record into the database.
+* Disconnect: Close the database connection.
+* Query: Execute a SQL query and return the resulting mysqli_result.
+* Insert: Insert a record into the database.
 * Update: Update records in the database.
 * Delete: Delete records from the database.
-* Select: Retrieve records from the database.
+* Select: Retrieve records from the database based on specified conditions.
 * Specific Select: Perform a specific selection from the database.
 * Get Value: Retrieve a single value from the database.
 * Get Specific Value: Retrieve a specific value from the database.
@@ -15,7 +17,8 @@ PHDB is a library for basic database management operations in PHP applications. 
 * Drop Table: Drop an existing table from the database.
 * Alter Table: Alter an existing table in the database.
 * Truncate Table: Remove all records from a table.
-* Disconnect: Close the database connection.
+* Find By: Find records in the database based on specific conditions.
+* Delete By: Delete records from the database based on specific conditions.
 
 # Usage
 ### Connect to the Database
@@ -28,8 +31,8 @@ PHDB::$dbname = 'database_name';
 PHDB::connect();
 ```
 
-### Add a Record
-To insert a new record into the database:
+### Insert a Record
+To insert a record into the database:
 ```
 $data = ['name' => 'John', 'email' => 'john@example.com'];
 PHDB::insert('users', $data);
@@ -38,29 +41,31 @@ PHDB::insert('users', $data);
 ### Update Records
 To update records in the database:
 ```
-$data = ['name' => 'Jane', 'email' => 'jane@example.com'];
-PHDB::update('users', $data, 'id = 1');
+$data = ['email' => 'jane@example.com'];
+PHDB::update('users', $data, ['name' => 'Jane']);
 ```
+sql
+Copy code
 
 ### Delete Records
 To delete records from the database:
 ```
-PHDB::delete('users', 'id = 1');
+PHDB::delete('users', ['name' => 'John']);
 ```
 
 ### Select Records
 To retrieve records from the database:
 ```
-$result = PHDB::select('users', '*', 'id = 1');
+$result = PHDB::select('users', '*', ['name' => 'John']);
 while ($row = $result->fetch_assoc()) {
 // Process the fetched row
 }
 ```
 
-### Specific Selection
+### Specific Select
 To perform a specific selection from the database:
 ```
-$result = PHDB::specificSelect('SELECT * FROM users WHERE id = 1');
+$result = PHDB::specificSelect('SELECT * FROM users WHERE name = ?', ['John']);
 while ($row = $result->fetch_assoc()) {
 // Process the fetched row
 }
@@ -69,13 +74,13 @@ while ($row = $result->fetch_assoc()) {
 ### Get Value
 To retrieve a single value from the database:
 ```
-$value = PHDB::getValue('users', 'name', 'id = 1');
+$value = PHDB::getValue('users', 'email', ['name' => 'John']);
 ```
 
 ### Get Specific Value
 To retrieve a specific value from the database:
 ```
-$value = PHDB::getSpecificValue('SELECT name FROM users WHERE id = 1');
+$value = PHDB::getSpecificValue('SELECT email FROM users WHERE name = ?', ['John']);
 ```
 
 ### Create Table
@@ -104,8 +109,23 @@ To remove all records from a table:
 PHDB::truncateTable('users');
 ```
 
+### Find By
+To find records in the database based on specific conditions:
+```
+$result = PHDB::findBy('users', ['name' => 'John'], 'name, email');
+while ($row = $result->fetch_assoc()) {
+// Process the fetched row
+}
+```
+
+### Delete By
+To delete records from the database based on specific conditions:
+```
+PHDB::deleteBy('users', ['name' => 'John']);
+```
+
 ### Disconnect from the Database
 To close the database connection:
 ```
-PHDB::disconnect();
+PHDB::close();
 ```
