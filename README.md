@@ -18,6 +18,7 @@ PHDB is a PHP library for basic database management operations. It offers conven
 * Alter Table: Alter an existing table in the database.
 * Truncate Table: Remove all records from a table.
 * Find By: Find records in the database based on specific conditions.
+* Paginate: Paginate results from the database.
 * Delete By: Delete records from the database based on specific conditions.
 
 # Usage
@@ -124,8 +125,18 @@ To delete records from the database based on specific conditions:
 PHDB::deleteBy('users', ['name' => 'John']);
 ```
 
+### Paginate results from the Database
+To paginate results from database:
+```
+paginate($table, $columns = '*', $where = [], $page = 1, $per_page = 10)
+```
+
 ### Disconnect from the Database
 To close the database connection:
+```
+PHDB::disconnect();
+```
+OR
 ```
 PHDB::close();
 ```
