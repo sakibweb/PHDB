@@ -5,6 +5,7 @@
  * The PHDB class provides methods for basic database management operations.
  */
 class PHDB {
+    
     /** @var mysqli|null $conn The mysqli instance for database connection. */
     private static $conn = null;
 
@@ -65,7 +66,7 @@ class PHDB {
                 throw new Exception("Query preparation failed: " . self::$conn->error);
             }
             if (!empty($params)) {
-                $types = str_repeat('s', count($params)); // Assuming all parameters are strings
+                $types = str_repeat('s', count($params));
                 $stmt->bind_param($types, ...$params);
             }
             $result = $stmt->execute();
@@ -77,6 +78,10 @@ class PHDB {
             return $out;
         } catch (Exception $e) {
             die($e->getMessage());
+        } finally {
+            if (self::$conn) {
+                self::disconnect();
+            }
         }
     }
 
@@ -87,21 +92,21 @@ class PHDB {
      * @param array $data An associative array of column names and values to insert or update.
      * @return bool TRUE on success, FALSE on failure.
      */
-	public static function save($table, $data) {
-		$keys = array_keys($data);
-		$values = array_values($data);
-		$placeholders = array_fill(0, count($keys), '?');
-		$result = self::select($table, '*', ['name' => $data['name']]);
-		if ($result && $result->num_rows > 0) {
-			// Key exists, update the value
-			$sql = "UPDATE $table SET value = ? WHERE name = ?";
-			return self::query($sql, [$data['value'], $data['name']]);
-		} else {
-			// Key does not exist, insert a new record
-			$sql = "INSERT INTO $table (name, value) VALUES (?, ?)";
-			return self::query($sql, $values);
-		}
-	}
+    public static function save($table, $data) {
+        $keys = array_keys($data);
+        $values = array_values($data);
+        $placeholders = array_fill(0, count($keys), '?');
+        $result = self::select($table, '*', ['name' => $data['name']]);
+        if ($result && $result->num_rows > 0) {
+            // Key exists, update the value
+            $sql = "UPDATE $table SET value = ? WHERE name = ?";
+            return self::query($sql, [$data['value'], $data['name']]);
+        } else {
+            // Key does not exist, insert a new record
+            $sql = "INSERT INTO $table (name, value) VALUES (?, ?)";
+            return self::query($sql, $values);
+        }
+    }
 
     /**
      * Insert a record into the database.
@@ -177,7 +182,7 @@ class PHDB {
      * @param array $where An associative array of conditions for the WHERE clause.
      * @return mysqli_result|bool The resulting mysqli_result object or FALSE on failure.
      */
-    public static function select($table, $columns = '*', $where = []) {
+    public static function select($table, $columns = '*', $where = [], $limit = null, $offset = null) {
         $sql = "SELECT $columns FROM $table";
         if (!empty($where)) {
             $conditions = [];
@@ -186,7 +191,17 @@ class PHDB {
             }
             $sql .= " WHERE " . implode(' AND ', $conditions);
         }
-        $params = array_values($where);
+        if ($limit) {
+            $sql .= " LIMIT ?";
+            if ($offset) {
+                $sql .= " OFFSET ?";
+                $params = array_merge(array_values($where), [$limit, $offset]);
+            } else {
+                $params = array_merge(array_values($where), [$limit]);
+            }
+        } else {
+            $params = array_values($where);
+        }
         return self::query($sql, $params);
     }
 
@@ -295,8 +310,8 @@ class PHDB {
      * @param string $columns The columns to select (comma separated).
      * @return mysqli_result|bool The resulting mysqli_result object or FALSE on failure.
      */
-    public static function findBy($table, $conditions, $columns = '*') {
-        return self::select($table, $columns, $conditions);
+    public static function findBy($table, $conditions, $columns = '*', $limit = null, $offset = null) {
+        return self::select($table, $columns, $conditions, $limit, $offset);
     }
 
     /**
@@ -308,6 +323,21 @@ class PHDB {
      */
     public static function deleteBy($table, $conditions) {
         return self::delete($table, $conditions);
+    }
+
+    /**
+     * Paginate results from the database.
+     *
+     * @param string $table The name of the table.
+     * @param string $columns The columns to select (comma separated).
+     * @param array $where An associative array of conditions for the WHERE clause.
+     * @param int $page The page number for pagination (1-based).
+     * @param int $per_page The number of records per page.
+     * @return mysqli_result|bool The resulting mysqli_result object or FALSE on failure.
+     */
+    public static function paginate($table, $columns = '*', $where = [], $page = 1, $per_page = 10) {
+        $offset = ($page - 1) * $per_page;
+        return self::select($table, $columns, $where, $per_page, $offset);
     }
 
     /**
