@@ -21,6 +21,33 @@ class PHDB {
     /** @var string|null $dbname Database name. */
     public static $dbname = null;
 
+    /** @var mixed $error Error handling mode. [true, false, 'custom error msg'] */
+    public static $error = true;
+
+    /**
+     * Handle errors based on the PHDB::$error setting.
+     *
+     * @param string $error_msg The error message to handle.
+     * @param bool $continue Whether to continue after the error or not.
+     * @return void
+     */
+    private static function handleError($error_msg, $continue = false) {
+        if (self::$error === true) {
+            error_log($error_msg);
+            echo $error_msg;
+            if (!$continue) {
+                die($error_msg);
+            }
+        } elseif (self::$error !== false) {
+            $custom_msg = is_string(self::$error) ? self::$error : '[An error occurred] ';
+            error_log($custom_msg);
+            echo $custom_msg;
+            if (!$continue) {
+                die($custom_msg);
+            }
+        }
+    }
+
     /**
      * Connect to the database.
      *
@@ -30,10 +57,10 @@ class PHDB {
         try {
             self::$conn = new mysqli(self::$host, self::$username, self::$password, self::$dbname);
             if (self::$conn->connect_error) {
-                throw new Exception("Connection failed: " . self::$conn->connect_error);
+                throw new Exception("Error: " . self::$conn->connect_error . "]");
             }
         } catch (Exception $e) {
-            die($e->getMessage());
+            self::handleError($e->getMessage(), false);
         }
     }
 
@@ -63,7 +90,7 @@ class PHDB {
             }
             $stmt = self::$conn->prepare($query);
             if (!$stmt) {
-                throw new Exception("Query preparation failed: " . self::$conn->error);
+                throw new Exception("[Error: " . self::$conn->error . "] ");
             }
             if (!empty($params)) {
                 $types = str_repeat('s', count($params));
@@ -71,13 +98,13 @@ class PHDB {
             }
             $result = $stmt->execute();
             if (!$result) {
-                throw new Exception("Query execution failed: " . $stmt->error);
+                throw new Exception("Error: " . $stmt->error . "] ");
             }
             $out = $stmt->get_result();
-			self::disconnect();
             return $out;
         } catch (Exception $e) {
-            die($e->getMessage());
+            self::handleError($e->getMessage(), true);
+            return false;
         } finally {
             if (self::$conn) {
                 self::disconnect();
@@ -183,11 +210,11 @@ class PHDB {
      * @return mysqli_result|bool The resulting mysqli_result object or FALSE on failure.
      */
     public static function select($table, $columns = '*', $where = [], $limit = null, $offset = null) {
-        $sql = "SELECT $columns FROM $table";
+        $sql = "SELECT $columns FROM `$table`";
         if (!empty($where)) {
             $conditions = [];
             foreach ($where as $key => $value) {
-                $conditions[] = "$key = ?";
+                $conditions[] = "`$key` = ?";
             }
             $sql .= " WHERE " . implode(' AND ', $conditions);
         }
