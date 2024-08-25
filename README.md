@@ -4,6 +4,7 @@ PHDB is a PHP library for basic database management operations. It offers conven
 
 # Features
 * Connect: Establish a connection to the database.
+* Error handling :  Error handling mode.
 * Disconnect: Close the database connection.
 * Query: Execute a SQL query and return the resulting mysqli_result.
 * Insert: Insert a record into the database.
@@ -29,6 +30,7 @@ PHDB::$host = 'localhost';
 PHDB::$username = 'username';
 PHDB::$password = 'password';
 PHDB::$dbname = 'database_name';
+PHDB::$error = true;
 PHDB::connect();
 ```
 
