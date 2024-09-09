@@ -77,6 +77,33 @@ class PHDB {
     }
 
     /**
+     * Check if a string contains potentially malicious SQL injection patterns.
+     *
+     * @param string $input The input string to check.
+     * @return bool True if the input is potentially malicious, false otherwise.
+     */
+    private static function isPotentiallyMalicious($input) {
+        $patterns = [
+            '/--/',        // SQL comment
+            '/;/',         // SQL command terminator
+            '/\/\*/',      // SQL comment start
+            '/union\s+select/i', // UNION SELECT (commonly used in SQL injection)
+            '/sleep\(\d+\)/i',   // SLEEP() function (time-based injection)
+            '/benchmark\(/i',    // BENCHMARK() function (time-based injection)
+            '/\bOR\b\s+\d+\s*=\s*\d+/i', // OR 1=1 or similar
+            '/exec\s+xp_/i'  // Executing stored procedures in SQL Server
+        ];
+
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, $input)) {
+                error_log('Potential SQL injection attempt detected.');
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Execute a SQL query and return the resulting mysqli_result.
      *
      * @param string $query The SQL query to execute.
@@ -84,6 +111,9 @@ class PHDB {
      * @return mysqli_result|bool The resulting mysqli_result object or FALSE on failure.
      */
     public static function query($query, $params = []) {
+        if (self::isPotentiallyMalicious($query)) {
+            return false;
+        }
         try {
             if (!self::$conn) {
                 self::connect();
@@ -204,19 +234,34 @@ class PHDB {
     /**
      * Select records from the database based on specified conditions.
      *
-     * @param string $table The name of the table.
-     * @param string $columns The columns to select (comma separated).
-     * @param array $where An associative array of conditions for the WHERE clause.
-     * @return mysqli_result|bool The resulting mysqli_result object or FALSE on failure.
+     * @param string $table The name of the table from which to select records.
+     * @param string $columns The columns to select, specified as a comma-separated string (defaults to '*').
+     * @param array $where An associative array of conditions for the WHERE clause. The key is the column name, and the value is the condition's value.
+     * @param int|null $limit The maximum number of records to retrieve (optional).
+     * @param int|null $offset The number of records to skip before starting to retrieve records (optional).
+     * @param string|null $orderBy The column(s) by which to order the result set, optionally including ASC/DESC (optional).
+     * @param string|null $groupBy The column(s) by which to group the result set (optional).
+     * @param array|null $joins An array of JOIN clauses to be included in the query (optional).
+     * 
+     * @return mysqli_result|bool Returns a `mysqli_result` object on success or FALSE on failure.
      */
-    public static function select($table, $columns = '*', $where = [], $limit = null, $offset = null) {
+    public static function select($table, $columns = '*', $where = [], $limit = null, $offset = null, $orderBy = null, $groupBy = null, $joins = null) {
         $sql = "SELECT $columns FROM `$table`";
+        if (!empty($joins)) {
+            $sql .= " " . implode(' ', $joins);
+        }
         if (!empty($where)) {
             $conditions = [];
             foreach ($where as $key => $value) {
                 $conditions[] = "`$key` = ?";
             }
             $sql .= " WHERE " . implode(' AND ', $conditions);
+        }
+        if ($groupBy) {
+            $sql .= " GROUP BY $groupBy";
+        }
+        if ($orderBy) {
+            $sql .= " ORDER BY $orderBy";
         }
         if ($limit) {
             $sql .= " LIMIT ?";
@@ -365,6 +410,22 @@ class PHDB {
     public static function paginate($table, $columns = '*', $where = [], $page = 1, $per_page = 10) {
         $offset = ($page - 1) * $per_page;
         return self::select($table, $columns, $where, $per_page, $offset);
+    }
+
+    /**
+     * Count the number of records in a table based on specified conditions.
+     *
+     * @param string $table The name of the table.
+     * @param array $where An associative array of conditions for the WHERE clause.
+     * @return int The number of records found.
+     */
+    public static function count($table, $where = []) {
+        $result = self::select($table, "COUNT(*) as count", $where);
+        if ($result && $result->num_rows > 0) {
+            $row = $result->fetch_assoc();
+            return (int)$row['count'];
+        }
+        return 0;
     }
 
     /**
