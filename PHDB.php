@@ -37,14 +37,18 @@ class PHDB {
             echo $error_msg;
             if (!$continue) {
                 die($error_msg);
+                return [
+                    'status' => false,
+                    'message' => $error_msg,
+                ];
             }
         } elseif (self::$error !== false) {
             $custom_msg = is_string(self::$error) ? self::$error : '[An error occurred] ';
             error_log($custom_msg);
-            echo $custom_msg;
-            if (!$continue) {
-                die($custom_msg);
-            }
+            return [
+                'status' => false,
+                'message' => $custom_msg,
+            ];
         }
     }
 
@@ -112,7 +116,10 @@ class PHDB {
      */
     public static function query($query, $params = []) {
         if (self::isPotentiallyMalicious($query)) {
-            return false;
+            return [
+                'status' => false,
+                'message' => 'Potential SQL injection attempt detected.',
+            ];
         }
         try {
             if (!self::$conn) {
@@ -155,12 +162,10 @@ class PHDB {
         $placeholders = array_fill(0, count($keys), '?');
         $result = self::select($table, '*', ['name' => $data['name']]);
         if ($result && $result->num_rows > 0) {
-            // Key exists, update the value
-            $sql = "UPDATE $table SET value = ? WHERE name = ?";
+            $sql = "UPDATE `$table` SET `value` = ? WHERE `name` = ?";
             return self::query($sql, [$data['value'], $data['name']]);
         } else {
-            // Key does not exist, insert a new record
-            $sql = "INSERT INTO $table (name, value) VALUES (?, ?)";
+            $sql = "INSERT INTO `$table` (name, value) VALUES (?, ?)";
             return self::query($sql, $values);
         }
     }
@@ -168,20 +173,29 @@ class PHDB {
     /**
      * Insert a record into the database.
      *
+     * This method inserts a new record into the specified table. If an entry with the same unique key
+     * (like 'name') already exists and the $overwrite parameter is set to true, it will update the existing
+     * record instead of inserting a new one. If $overwrite is false, it will insert a new record or update
+     * the existing record based on the unique key using ON DUPLICATE KEY UPDATE.
+     *
      * @param string $table The name of the table.
      * @param array $data An associative array of column names and values to insert.
+     * @param bool $overwrite Whether to overwrite existing records (default is false).
      * @return bool TRUE on success, FALSE on failure.
      */
-    public static function insert($table, $data) {
-        $keys = array_keys($data);
+    public static function insert($table, $data, $overwrite = false) {
+        $keys = array_map(function($key) { return "`$key`"; }, array_keys($data));
         $values = array_values($data);
         $placeholders = array_fill(0, count($keys), '?');
-        $sql = "INSERT INTO $table (" . implode(', ', $keys) . ") VALUES (" . implode(', ', $placeholders) . ") ";
-        $sql .= "ON DUPLICATE KEY UPDATE ";
-        foreach ($keys as $key) {
-            $sql .= "$key = VALUES($key), ";
+        if ($overwrite) {
+            $result = self::select($table, '*', ['name' => $data['name']]);
+            if ($result && $result->num_rows > 0) {
+                $sql = "UPDATE `$table` SET " . implode(', ', array_map(function($key) { return "`$key` = ?"; }, array_keys($data))) . " WHERE `name` = ?";
+                return self::query($sql, array_merge($values, [$data['name']]));
+            }
         }
-        $sql = rtrim($sql, ', ');
+        $sql = "INSERT INTO `$table` (" . implode(', ', $keys) . ") VALUES (" . implode(', ', $placeholders) . ") ";
+        $sql .= " ON DUPLICATE KEY UPDATE " . implode(', ', array_map(function($key) { return "`$key` = VALUES(`$key`)"; }, array_keys($data)));        
         return self::query($sql, $values);
     }
 	
@@ -196,14 +210,14 @@ class PHDB {
     public static function update($table, $data, $where = []) {
         $set = [];
         foreach ($data as $key => $value) {
-            $set[] = "$key = ?";
+            $set[] = "`$key` = ?";
         }
         $set = implode(', ', $set);
-        $sql = "UPDATE $table SET $set";
+        $sql = "UPDATE `$table` SET $set";
         if (!empty($where)) {
             $conditions = [];
             foreach ($where as $key => $value) {
-                $conditions[] = "$key = ?";
+                $conditions[] = "`$key` = ?";
             }
             $sql .= " WHERE " . implode(' AND ', $conditions);
         }
@@ -219,11 +233,11 @@ class PHDB {
      * @return bool TRUE on success, FALSE on failure.
      */
     public static function delete($table, $where = []) {
-        $sql = "DELETE FROM $table";
+        $sql = "DELETE FROM `$table`";
         if (!empty($where)) {
             $conditions = [];
             foreach ($where as $key => $value) {
-                $conditions[] = "$key = ?";
+                $conditions[] = "`$key` = ?";
             }
             $sql .= " WHERE " . implode(' AND ', $conditions);
         }
@@ -258,10 +272,10 @@ class PHDB {
             $sql .= " WHERE " . implode(' AND ', $conditions);
         }
         if ($groupBy) {
-            $sql .= " GROUP BY $groupBy";
+            $sql .= " GROUP BY `$groupBy`";
         }
         if ($orderBy) {
-            $sql .= " ORDER BY $orderBy";
+            $sql .= " ORDER BY `$orderBy`";
         }
         if ($limit) {
             $sql .= " LIMIT ?";
@@ -331,9 +345,9 @@ class PHDB {
      * @return bool TRUE on success, FALSE on failure.
      */
     public static function createTable($table_name, $columns) {
-        $sql = "CREATE TABLE IF NOT EXISTS $table_name (";
+        $sql = "CREATE TABLE IF NOT EXISTS `$table_name` (";
         foreach ($columns as $column_name => $column_definition) {
-            $sql .= "$column_name $column_definition, ";
+            $sql .= "`$column_name ` $column_definition, ";
         }
         $sql = rtrim($sql, ', ') . ")";
         return self::query($sql);
@@ -346,7 +360,7 @@ class PHDB {
      * @return bool TRUE on success, FALSE on failure.
      */
     public static function dropTable($table_name) {
-        $sql = "DROP TABLE IF EXISTS $table_name";
+        $sql = "DROP TABLE IF EXISTS `$table_name`";
         return self::query($sql);
     }
 
@@ -358,7 +372,7 @@ class PHDB {
      * @return bool TRUE on success, FALSE on failure.
      */
     public static function alterTable($table_name, $changes) {
-        $sql = "ALTER TABLE $table_name ";
+        $sql = "ALTER TABLE `$table_name` ";
         $sql .= implode(', ', $changes);
         return self::query($sql);
     }
@@ -370,7 +384,7 @@ class PHDB {
      * @return bool TRUE on success, FALSE on failure.
      */
     public static function truncateTable($table_name) {
-        $sql = "TRUNCATE TABLE $table_name";
+        $sql = "TRUNCATE TABLE `$table_name`";
         return self::query($sql);
     }
 
