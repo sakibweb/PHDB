@@ -87,6 +87,7 @@ class PHDB {
      * @return bool True if the input is potentially malicious, false otherwise.
      */
     private static function isPotentiallyMalicious($input) {
+        $sanitizedInput = filter_var($input, FILTER_SANITIZE_STRING);
         $patterns = [
             '/--/',        // SQL comment
             '/;/',         // SQL command terminator
@@ -99,7 +100,7 @@ class PHDB {
         ];
 
         foreach ($patterns as $pattern) {
-            if (preg_match($pattern, $input)) {
+            if (preg_match($pattern, $sanitizedInput)) {
                 error_log('Potential SQL injection attempt detected.');
                 return true;
             }
