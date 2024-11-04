@@ -87,20 +87,19 @@ class PHDB {
      * @return bool True if the input is potentially malicious, false otherwise.
      */
     private static function isPotentiallyMalicious($input) {
-        $sanitizedInput = filter_var($input, FILTER_SANITIZE_STRING);
         $patterns = [
-            '/--/',        // SQL comment
-            '/;/',         // SQL command terminator
-            '/\/\*/',      // SQL comment start
-            '/union\s+select/i', // UNION SELECT (commonly used in SQL injection)
-            '/sleep\(\d+\)/i',   // SLEEP() function (time-based injection)
-            '/benchmark\(/i',    // BENCHMARK() function (time-based injection)
-            '/\bOR\b\s+\d+\s*=\s*\d+/i', // OR 1=1 or similar
-            '/exec\s+xp_/i'  // Executing stored procedures in SQL Server
+            '/--/',                         // SQL comment
+            '/;/',                          // SQL command terminator
+            '/\/\*/',                       // SQL comment start
+            '/union\s+select/i',            // UNION SELECT (commonly used in SQL injection)
+            '/sleep\(\d+\)/i',              // SLEEP() function (time-based injection)
+            '/benchmark\(/i',               // BENCHMARK() function (time-based injection)
+            '/\bOR\b\s+\d+\s*=\s*\d+/i',    // OR 1=1 or similar
+            '/exec\s+xp_/i'                 // Executing stored procedures in SQL Server
         ];
 
         foreach ($patterns as $pattern) {
-            if (preg_match($pattern, $sanitizedInput)) {
+            if (preg_match($pattern, $input)) {
                 error_log('Potential SQL injection attempt detected.');
                 return true;
             }
@@ -121,6 +120,10 @@ class PHDB {
                 'status' => false,
                 'message' => 'Potential SQL injection attempt detected.',
             ];
+        } else {
+            // $query = @filter_var($query, FILTER_SANITIZE_STRING);
+            $query = @htmlspecialchars(trim($query), ENT_QUOTES, 'UTF-8');
+            $query = @htmlspecialchars($query, ENT_QUOTES | ENT_HTML5, 'UTF-8');
         }
         try {
             if (!self::$conn) {
