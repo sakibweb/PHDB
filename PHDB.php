@@ -108,6 +108,23 @@ class PHDB {
     }
 
     /**
+     * Format the columns for the SQL query by adding backticks where necessary.
+     *
+     * @param string $columns The columns to format, specified as a comma-separated string.
+     * @return string The formatted columns string with backticks added.
+     */
+    private static function formatColumn($columns) {
+        if ($columns !== '*' && !empty($columns)) {
+            $columns = str_replace('`', '', $columns);
+            $columnsArray = preg_split('/\s*,\s*/', $columns);
+            return implode(', ', array_map(function($column) {
+                return "`$column`";
+            }, $columnsArray));
+        }
+        return $columns;
+    }
+
+    /**
      * Execute a SQL query and return the resulting mysqli_result.
      *
      * @param string $query The SQL query to execute.
@@ -264,6 +281,7 @@ class PHDB {
      * @return mysqli_result|bool Returns a `mysqli_result` object on success or FALSE on failure.
      */
     public static function select($table, $columns = '*', $where = [], $limit = null, $offset = null, $orderBy = null, $groupBy = null, $joins = null) {
+        $columns = self::formatColumn($columns);
         $sql = "SELECT $columns FROM `$table`";
         if (!empty($joins)) {
             $sql .= " " . implode(' ', $joins);
