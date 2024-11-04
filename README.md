@@ -38,205 +38,253 @@ Simply include the `PHDB.php` file in your project.  No external dependencies ar
 include 'PHDB.php';
 ```
 
-## Usage
+# Usage
 
-### Configuration
+## Configuration
 
-Set the database credentials:
+Before using the `PHDB` class, you need to configure the database credentials:
 
 ```php
-PHDB::$host = 'your_host';
-PHDB::$username = 'your_username';
-PHDB::$password = 'your_password';
-PHDB::$dbname = 'your_database_name';
+PHDB::$host = "localhost";
+PHDB::$username = "your_username";
+PHDB::$password = "your_password";
+PHDB::$dbname = "your_database_name";
 
-// Error handling mode (true for direct output, false for returning error details, or a custom error message string)
-PHDB::$error = true; // or false, or 'Custom error message' 
+// Optional: Customize error handling
+// PHDB::$error = false; // Disable error reporting
+// PHDB::$error = "A custom error message"; // Custom error message
 ```
 
-### Connecting and Disconnecting
+## Connecting and Disconnecting
 
 ```php
-$connectionResult = PHDB::connect();
-if ($connectionResult['status'] === true) {
-    // Connection successful
-} else {
-    // Handle connection error
-    echo $connectionResult['message']; 
-}
+// Connect to the database
+PHDB::connect();
 
+// Perform database operations here...
 
-PHDB::disconnect(); // or PHDB::close();
+// Disconnect from the database
+PHDB::disconnect(); 
 ```
 
-### Querying
+## Querying the Database
+
+### `query()`
+
+Execute a raw SQL query:
 
 ```php
-// Simple query
-$result = PHDB::query("SELECT * FROM `users`"); // Note backticks are added automatically where appropriate
+$result = PHDB::query("SELECT * FROM users WHERE id = ?", [1]);
 
-if ($result['status'] === true) {
-    while ($row = $result['data']->fetch_assoc()) {
-        // Process data
-        print_r($row);
+if ($result) {
+    while ($row = $result->fetch_assoc()) {
+        // Process the row
+        echo $row['name'];
     }
-} else {
-    // Handle error
-    echo $result['message'];
-}
-
-
-// Prepared statement
-$result = PHDB::query("SELECT * FROM `users` WHERE `id` = ?", [1]); // Note backticks
-
-if ($result['status'] === true) {
-    // ... process data ...
-} else {
-    // ... handle error ...
-}
-
-// Custom error message
-PHDB::$error = "A database error occurred.";
-$result = PHDB::query("SELECT * FROM non_existent_table");
-if ($result['status'] === false) {
-    echo $result['message']; // Outputs "A database error occurred."
-}
-
-
-```
-
-### Inserting Data
-
-```php
-$data = ['name' => 'Alice', 'email' => 'alice@example.com'];
-
-// Insert (or update if duplicate key exists)
-$result = PHDB::insert('users', $data, true); // $overwrite = true (updates existing if duplicate 'name')
-
-
-
-if ($result['status'] === true) {
-  echo $result['message'];
-
-} else {
-  // ... error handling ...
-}
-
-
-// Insert without overwrite (will fail on duplicate key):
-$result = PHDB::insert('users', $data);  // $overwrite defaults to false
-
-if ($result['status'] === true) {
-   // ... success ...
-} else {
-   // ... error handling ...
-}
-
-```
-
-### Updating Data
-
-```php
-$data = ['email' => 'bob.updated@example.com'];
-$where = ['id' => 2];  // Condition
-
-$result = PHDB::update('users', $data, $where);
-if ($result['status'] === true) {
-    // Update successful
-} else {
-    // Handle error
 }
 ```
 
-### Deleting Data
+### `select()`
+
+Select data with various options:
 
 ```php
-$where = ['id' => 3];
-$result = PHDB::delete('users', $where);
-if ($result['status'] === true) {
-    // Deletion successful
-} else {
-    // Handle error
-}
-```
+// Select all columns from the 'users' table
+$users = PHDB::select('users');
 
-### Selecting Data
+// Select specific columns with a WHERE clause and LIMIT
+$users = PHDB::select('users', 'id, name, email', ['status' => 'active'], 10, 5); // Limit 10, offset 5
 
+// Select with ORDER BY and GROUP BY
+$users = PHDB::select('users', '*', [], null, null, 'name ASC', 'city');
 
-```php
-// Selecting all columns
-$result = PHDB::select('users'); 
-if ($result['status'] === true) {
-
-    while ($row = $result['data']->fetch_assoc()) {
-        // Process rows
-    }
-
-} else {
-  // Error handling
-}
-
-
-// Selecting specific columns with WHERE clause and LIMIT
-$result = PHDB::select('users', '`name`, `email`', ['`status`' => 'active'], 10, 5); // Backticks added automatically to WHERE and ORDER BY
-if ($result['status'] === true) {
-    // Process the result
-}
-
-
-// Using joins:
+// Example with JOINs (assuming a 'posts' table with a 'user_id' column)
 $joins = [
-  "JOIN table2 ON users.id = table2.user_id"
+    "LEFT JOIN posts ON users.id = posts.user_id"
 ];
+$usersWithPosts = PHDB::select('users', 'users.*, posts.title', [], null, null, null, null, $joins);
 
-$result = PHDB::select('users', '*', [], null, null, null, null, $joins);
-
+while ($row = $usersWithPosts->fetch_assoc()) {
+    echo $row['name'] . " - " . $row['title'] . "<br>";
+}
 
 ```
 
-### Other Methods
+
+### `specificSelect()`
+
+Execute a specific SQL query:
 
 ```php
-// Get a single value
-$email = PHDB::getValue('users', 'email', ['id' => 1]);
-
-// Get a specific value using a custom query
-$name = PHDB::getSpecificValue("SELECT name FROM users WHERE id = ?", [2]);
-
-// Create a table
-$columns = [
-    'id' => 'INT AUTO_INCREMENT PRIMARY KEY',
-    'name' => 'VARCHAR(255)',
-    // ... more columns
-];
-PHDB::createTable('my_table', $columns);
-
-// Drop a table
-PHDB::dropTable('my_table');
-
-// Alter a table
-$changes = ['ADD COLUMN phone VARCHAR(20)', 'DROP COLUMN address'];
-PHDB::alterTable('my_table', $changes);
-
-// Truncate a table
-PHDB::truncateTable('my_table');
-
-// Find by conditions (same as select with conditions)
-$users = PHDB::findBy('users', ['status' => 'active']);
-
-
-// Paginate results
-$perPage = 10;
-$page = 2; // Get the second page
-$results = PHDB::paginate('users', '*', [], $page, $perPage);
-
-
-// Count records
-$count = PHDB::count('users', ['status' => 'active']);
-
-
+$result = PHDB::specificSelect("SELECT COUNT(*) AS total FROM products WHERE category = ?", ['electronics']);
+$totalProducts = $result->fetch_assoc()['total'];
 ```
 
+### `getValue()`
+
+Retrieve a single value from a table:
+
+```php
+$username = PHDB::getValue('users', 'name', ['id' => 10]);
+```
+
+### `getSpecificValue()`
+
+Retrieve a specific value with a custom query:
+
+```php
+$latestOrderId = PHDB::getSpecificValue("SELECT MAX(id) FROM orders"); 
+```
+
+
+## Inserting and Updating Data
+
+### `insert()`
+
+Insert data into a table:
+
+```php
+$data = [
+    'name' => 'John Doe',
+    'email' => 'john.doe@example.com',
+    'status' => 'active'
+];
+
+PHDB::insert('users', $data);
+
+// Insert with overwrite (if 'name' is a unique key, it will update the existing record)
+PHDB::insert('users', $data, true); 
+```
+
+
+### `save()` - Simplified Insert/Update
+
+Insert or update based on existence of a 'name' key:
+
+```php
+$setting = [
+  'name' => 'site_title',
+  'value' => 'My Website'
+];
+PHDB::save('settings', $setting); // Inserts or updates the 'site_title' setting
+```
+
+### `update()`
+
+Update existing data:
+
+```php
+PHDB::update('users', ['status' => 'inactive'], ['id' => 5]);
+```
+
+
+## Deleting Data
+
+### `delete()`
+
+Delete data from a table:
+
+```php
+PHDB::delete('users', ['id' => 5]);
+```
+
+### `deleteBy()` - Alias for `delete()`
+
+```php
+PHDB::deleteBy('users', ['status' => 'inactive']);
+```
+
+
+
+## Table Management
+
+### `createTable()`
+
+Create a new table:
+
+```php
+$columns = [
+    'id' => 'INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY',
+    'name' => 'VARCHAR(255)',
+    'email' => 'VARCHAR(255)'
+];
+
+PHDB::createTable('users', $columns);
+```
+
+### `dropTable()`
+
+Drop an existing table:
+
+
+```php
+PHDB::dropTable('users');
+```
+
+### `alterTable()`
+
+Alter a table's structure:
+
+```php
+$changes = [
+    'ADD COLUMN age INT(3)',
+    'DROP COLUMN email'
+];
+
+PHDB::alterTable('users', $changes);
+```
+
+### `truncateTable()`
+
+Truncate a table (delete all data):
+
+```php
+PHDB::truncateTable('users');
+```
+
+
+## Finding and Counting
+
+### `findBy()`
+
+Find records based on conditions:
+
+```php
+$activeUsers = PHDB::findBy('users', ['status' => 'active'], 'id, name', 5, 2);  // Get id and name, limit 5, offset 2
+```
+
+
+
+### `count()`
+
+Count records based on conditions:
+
+```php
+$totalUsers = PHDB::count('users');
+$activeUsersCount = PHDB::count('users', ['status' => 'active']);
+```
+
+## Pagination
+
+### `paginate()`
+
+Paginate results:
+
+```php
+$currentPage = 2;
+$perPage = 20;
+$paginatedUsers = PHDB::paginate('users', '*', [], $currentPage, $perPage);
+
+while ($row = $paginatedUsers->fetch_assoc()) {
+  // ... process each row on the current page
+}
+```
+
+## Closing the Connection
+
+```php
+PHDB::close(); // Explicitly close the connection (also handled automatically after queries)
+```
 
 ## Error Handling
 
