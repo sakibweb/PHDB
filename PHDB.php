@@ -369,7 +369,7 @@ class PHDB {
     public static function createTable($table_name, $columns) {
         $sql = "CREATE TABLE IF NOT EXISTS `$table_name` (";
         foreach ($columns as $column_name => $column_definition) {
-            $sql .= "`$column_name ` $column_definition, ";
+            $sql .= "`$column_name` $column_definition, ";
         }
         $sql = rtrim($sql, ', ') . ")";
         return self::query($sql);
