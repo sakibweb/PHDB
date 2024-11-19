@@ -171,24 +171,38 @@ class PHDB {
     }
 
     /**
-     * Insert or update a record into the database based on whether the key already exists.
+     * Insert or update a record into the database based on whether the specified unique key or keys exist.
      *
      * @param string $table The name of the table.
      * @param array $data An associative array of column names and values to insert or update.
+     * @param string|array|null $uniqueKey The column names to check for uniqueness (defaults to 'id').
      * @return bool TRUE on success, FALSE on failure.
      */
-    public static function save($table, $data) {
-        $keys = array_keys($data);
-        $values = array_values($data);
-        $placeholders = array_fill(0, count($keys), '?');
-        $result = self::select($table, '*', ['name' => $data['name']]);
-        if ($result && $result->num_rows > 0) {
-            $sql = "UPDATE `$table` SET `value` = ? WHERE `name` = ?";
-            return self::query($sql, [$data['value'], $data['name']]);
+    public static function save($table, $data, $uniqueKey = null) {
+        if ($uniqueKey !== null) {
+            $uniqueKeys = (array) $uniqueKey;
+            foreach ($uniqueKeys as $key) {
+                if (!isset($data[$key])) {
+                    throw new InvalidArgumentException("The data array must contain the '$key' key.");
+                }
+            }
+            $whereConditions = implode(' AND ', array_map(fn($key) => "`$key` = ?", $uniqueKeys));
+            $uniqueValues = array_intersect_key($data, array_flip($uniqueKeys));
+            $values = array_values($data);
         } else {
-            $sql = "INSERT INTO `$table` (name, value) VALUES (?, ?)";
-            return self::query($sql, $values);
+            $whereConditions = '1=0';
+            $uniqueValues = [];
+            $values = array_values($data);
         }
+        $result = self::select($table, '*', $uniqueValues);
+        if ($result && $result->num_rows > 0) {
+            $sql = "UPDATE `$table` SET " . implode(',', array_map(fn($key) => "`$key` = ?", array_keys($data))) . " WHERE $whereConditions";
+            $values = array_merge(array_values($uniqueValues), $values);
+        } else {
+            $sql = "INSERT INTO `$table` (" . implode(',', array_map(fn($key) => "`$key`", array_keys($data))) . ") 
+                    VALUES (" . implode(',', array_fill(0, count($data), '?')) . ")";
+        }
+        return self::query($sql, $values);
     }
 
     /**
