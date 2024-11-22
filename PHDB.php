@@ -428,12 +428,111 @@ class PHDB {
      * Find records in the database based on specific conditions.
      *
      * @param string $table The name of the table.
-     * @param array $conditions An associative array of conditions for the WHERE clause.
      * @param string $columns The columns to select (comma separated).
+     * @param array $conditions An associative array of conditions for the WHERE clause.
      * @return mysqli_result|bool The resulting mysqli_result object or FALSE on failure.
      */
-    public static function findBy($table, $conditions, $columns = '*', $limit = null, $offset = null) {
+    public static function findBy($table, $columns = '*', $conditions, $limit = null, $offset = null) {
         return self::select($table, $columns, $conditions, $limit, $offset);
+    }
+
+    /**
+     * Search records in the database based on specified conditions using LIKE.
+     *
+     * @param string $table The name of the table from which to select records.
+     * @param string $columns The columns to select, specified as a comma-separated string.
+     * @param array $conditions An associative array of conditions for the WHERE clause. The key is the column name, and the value is the condition's value.
+     * @param int|null $limit The maximum number of records to retrieve (optional).
+     * @param int|null $offset The number of records to skip before starting to retrieve records (optional).
+     * @param string|null $orderBy The column(s) by which to order the result set (optional).
+     * @param string|null $groupBy The column(s) by which to group the result set (optional).
+     * @param array|null $joins An array of JOIN clauses to be included in the query (optional).
+     * 
+     * @return mysqli_result|bool Returns a `mysqli_result` object on success or FALSE on failure.
+     */
+    public static function search($table, $columns, $conditions, $limit = null, $offset = null, $orderBy = null, $groupBy = null, $joins = null) {
+        $columns = self::formatColumn($columns);
+        $sql = "SELECT $columns FROM `$table`";
+        
+        if (!empty($joins)) {
+            $sql .= " " . implode(' ', $joins);
+        }
+
+        if (!empty($conditions)) {
+            $conditionParts = [];
+            foreach ($conditions as $column => $value) {
+                $conditionParts[] = "`$column` LIKE ?";
+            }
+            $sql .= " WHERE " . implode(' AND ', $conditionParts);
+        }
+
+        if ($groupBy) {
+            $sql .= " GROUP BY `$groupBy`";
+        }
+        if ($orderBy) {
+            $sql .= " ORDER BY `$orderBy`";
+        }
+        
+        if ($limit) {
+            $sql .= " LIMIT ?";
+            if ($offset) {
+                $sql .= " OFFSET ?";
+                $params = array_merge(array_map(function($v) { return "%$v%"; }, array_values($conditions)), [$limit, $offset]);
+            } else {
+                $params = array_merge(array_map(function($v) { return "%$v%"; }, array_values($conditions)), [$limit]);
+            }
+        } else {
+            $params = array_map(function($v) { return "%$v%"; }, array_values($conditions));
+        }
+        
+        return self::query($sql, $params);
+    }
+
+    /**
+     * Get the available columns from a specified table in the database.
+     *
+     * @param string $table The name of the table.
+     * @param string|array|null $filter Optional. A pattern or array of patterns to filter column names using 'LIKE'.
+     * @param string|array|null $skip Optional. A pattern or array of patterns to exclude column names using 'LIKE'.
+     * @return array Returns an array of column names on success or an empty array on failure.
+     */
+    public static function columns($table, $filter = null, $skip = null) {
+        $sql = "SHOW COLUMNS FROM `$table`";
+        $result = self::query($sql);
+        if ($result instanceof mysqli_result) {
+            $columns = [];
+            while ($row = $result->fetch_assoc()) {
+                $columns[] = $row['Field'];
+            }
+            $filterColumns = function($columns, $patterns) {
+                return array_filter($columns, function($column) use ($patterns) {
+                    foreach ((array)$patterns as $pattern) {
+                        if (strpos(strtolower($column), strtolower($pattern)) !== false) {
+                            return true;
+                        }
+                    }
+                    return false;
+                });
+            };
+            if ($filter) {
+                $columns = $filterColumns($columns, $filter);
+            }
+            if ($skip) {
+                $skipColumns = function($columns, $patterns) {
+                    return array_filter($columns, function($column) use ($patterns) {
+                        foreach ((array)$patterns as $pattern) {
+                            if (strpos(strtolower($column), strtolower($pattern)) !== false) {
+                                return false;
+                            }
+                        }
+                        return true;
+                    });
+                };
+                $columns = $skipColumns($columns, $skip);
+            }
+            return array_values($columns);
+        }
+        return [];
     }
 
     /**
