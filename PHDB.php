@@ -158,8 +158,35 @@ class PHDB {
             if (!$result) {
                 throw new Exception("Error: " . $stmt->error . "] ");
             }
-            $out = $stmt->get_result();
-            return $out;
+            switch (true) {
+                case stripos($query, 'SELECT') === 0:
+                    return $stmt->get_result();
+    
+                case stripos($query, 'INSERT') === 0:
+                    return true;
+                    
+                case stripos($query, 'UPDATE') === 0:
+                    return true;
+    
+                case stripos($query, 'DELETE') === 0:
+                    return true;
+    
+                case stripos($query, 'CREATE') === 0:
+                case stripos($query, 'ALTER') === 0:
+                case stripos($query, 'DROP') === 0:
+                    return true;
+
+                case stripos($query, 'SHOW COLUMNS') === 0:
+                case stripos($query, 'SHOW TABLES') === 0:
+                case stripos($query, 'SHOW DATABASES') === 0:
+                    return $stmt->get_result();
+    
+                case stripos($query, 'DESCRIBE') === 0:
+                    return $stmt->get_result();
+
+                default:
+                    return false;
+            }
         } catch (Exception $e) {
             self::handleError($e->getMessage(), true);
             return false;
