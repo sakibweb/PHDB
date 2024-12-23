@@ -202,10 +202,12 @@ class PHDB {
      *
      * @param string $table The name of the table.
      * @param array $data An associative array of column names and values to insert or update.
+     * @param array|null $check An array of column names to check for existing records.
      * @param string|array|null $uniqueKey The column names to check for uniqueness (defaults to 'id').
      * @return bool TRUE on success, FALSE on failure.
      */
-    public static function save($table, $data, $uniqueKey = null) {
+    public static function save($table, $data, $check = null, $uniqueKey = null) {
+        // Ensure that the unique key is set
         if ($uniqueKey !== null) {
             $uniqueKeys = (array) $uniqueKey;
             foreach ($uniqueKeys as $key) {
@@ -221,14 +223,26 @@ class PHDB {
             $uniqueValues = [];
             $values = array_values($data);
         }
-        $result = self::select($table, '*', $uniqueValues);
+
+        // Check for existing records based on the $check parameter
+        if ($check !== null) {
+            $checkConditions = implode(' AND ', array_map(fn($key) => "`$key` = ?", $check));
+            $checkValues = array_intersect_key($data, array_flip($check));
+            $result = self::select($table, '*', $checkValues);
+        } else {
+            $result = self::select($table, '*', $uniqueValues);
+        }
+
         if ($result && $result->num_rows > 0) {
+            // Update existing record
             $sql = "UPDATE `$table` SET " . implode(',', array_map(fn($key) => "`$key` = ?", array_keys($data))) . " WHERE $whereConditions";
             $values = array_merge(array_values($uniqueValues), $values);
         } else {
+            // Insert new record
             $sql = "INSERT INTO `$table` (" . implode(',', array_map(fn($key) => "`$key`", array_keys($data))) . ") 
                     VALUES (" . implode(',', array_fill(0, count($data), '?')) . ")";
         }
+        
         return self::query($sql, $values);
     }
 
