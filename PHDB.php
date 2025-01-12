@@ -160,7 +160,12 @@ class PHDB {
             }
             switch (true) {
                 case stripos($query, 'SELECT') === 0:
-                    return $stmt->get_result();
+                    $result = $stmt->get_result();
+                    $data = [];
+                    while ($row = $result->fetch_assoc()) {
+                        $data[] = $row;
+                    }
+                    return $data;
     
                 case stripos($query, 'INSERT') === 0:
                     return true;
@@ -179,10 +184,20 @@ class PHDB {
                 case stripos($query, 'SHOW COLUMNS') === 0:
                 case stripos($query, 'SHOW TABLES') === 0:
                 case stripos($query, 'SHOW DATABASES') === 0:
-                    return $stmt->get_result();
+                    $result = $stmt->get_result();
+                    $data = [];
+                    while ($row = $result->fetch_assoc()) {
+                        $data[] = $row;
+                    }
+                    return $data;
     
                 case stripos($query, 'DESCRIBE') === 0:
-                    return $stmt->get_result();
+                    $result = $stmt->get_result();
+                    $data = [];
+                    while ($row = $result->fetch_assoc()) {
+                        $data[] = $row;
+                    }
+                    return $data;
 
                 default:
                     return false;
