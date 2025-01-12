@@ -104,7 +104,7 @@ $joins = [
 ];
 $usersWithPosts = PHDB::select('users', 'users.*, posts.title', [], null, null, null, null, $joins);
 
-while ($row = $usersWithPosts->fetch_assoc()) {
+foreach ($usersWithPosts as $row) {
     echo $row['name'] . " - " . $row['title'] . "<br>";
 }
 
@@ -117,7 +117,7 @@ Execute a specific SQL query:
 
 ```php
 $result = PHDB::specificSelect("SELECT COUNT(*) AS total FROM products WHERE category = ?", ['electronics']);
-$totalProducts = $result->fetch_assoc()['total'];
+$totalProducts = $result[0]['total'];
 ```
 
 ### `getValue()`
@@ -275,7 +275,7 @@ $currentPage = 2;
 $perPage = 20;
 $paginatedUsers = PHDB::paginate('users', '*', [], $currentPage, $perPage);
 
-while ($row = $paginatedUsers->fetch_assoc()) {
+foreach ($paginatedUsers as $row) {
   // ... process each row on the current page
 }
 ```
