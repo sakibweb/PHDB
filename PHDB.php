@@ -404,9 +404,8 @@ class PHDB {
      */
     public static function getValue($table, $column, $where = []) {
         $result = self::select($table, $column, $where);
-        if ($result && $result->num_rows > 0) {
-            $row = $result->fetch_assoc();
-            return $row[$column];
+        if ($result) {
+            return $result[$column];
         } else {
             return null;
         }
