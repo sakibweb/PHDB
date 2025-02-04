@@ -161,10 +161,14 @@ class PHDB {
             switch (true) {
                 case stripos($query, 'SELECT') === 0:
                     $result = $stmt->get_result();
+                    if ($result === false) {
+                        throw new Exception("Error fetching result: " . self::$conn->error);
+                    }
                     $data = [];
                     while ($row = $result->fetch_assoc()) {
                         $data[] = $row;
                     }
+                    $result->free();
                     return $data;
     
                 case stripos($query, 'INSERT') === 0:
@@ -429,6 +433,18 @@ class PHDB {
     }
 
     /**
+     * Create a database if it does not exist.
+     *
+     * @param string $dbname The name of the database.
+     * @param string $collation The collation to use for the database (defaults to 'utf8mb4_0900_ai_ci').
+     * @return bool TRUE on success, FALSE on failure.
+     */
+    public static function addDB($dbname, $collation = 'utf8mb4_0900_ai_ci') {
+        $query = "CREATE DATABASE IF NOT EXISTS `$dbname` CHARACTER SET utf8mb4 COLLATE $collation";
+        return self::query($query);
+    }
+
+    /**
      * Create a new table in the database.
      *
      * @param string $table_name The name of the table to create.
@@ -624,10 +640,9 @@ class PHDB {
      * @return int The number of records found.
      */
     public static function count($table, $where = []) {
-        $result = self::select($table, "COUNT(*) as count", $where);
-        if ($result && $result->num_rows > 0) {
-            $row = $result->fetch_assoc();
-            return (int)$row['count'];
+        $result = self::select($table, "*", $where);
+        if ($result) {
+            return (int)count($result);
         }
         return 0;
     }
