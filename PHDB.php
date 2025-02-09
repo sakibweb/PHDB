@@ -1,84 +1,94 @@
-<?php
-/**
- * Class PHDB
- * Author: Sakibur Rahman @sakibweb
- * The PHDB class provides methods for basic database management operations.
- */
-class PHDB {
-    
-    /** @var mysqli|null $conn The mysqli instance for database connection. */
-    private static $conn = null;
-
-    /** @var string|null $host Database host. */
-    public static $host = null;
-
-    /** @var string|null $username Database username. */
-    public static $username = null;
-
-    /** @var string|null $password Database password. */
-    public static $password = null;
-
-    /** @var string|null $dbname Database name. */
-    public static $dbname = null;
-
-    /** @var mixed $error Error handling mode. [true, false, 'custom error msg'] */
-    public static $error = true;
-
+    <?php
     /**
-     * Handle errors based on the PHDB::$error setting.
-     *
-     * @param string $error_msg The error message to handle.
-     * @param bool $continue Whether to continue after the error or not.
-     * @return void
+     * Class PHDB
+     * Author: Sakibur Rahman @sakibweb
+     * The PHDB class provides methods for basic database management operations.
      */
-    private static function handleError($error_msg, $continue = false) {
-        if (self::$error === true) {
-            error_log($error_msg);
-            echo $error_msg;
-            if (!$continue) {
-                die($error_msg);
+    class PHDB {
+        
+        /** @var mysqli|null $conn The mysqli instance for database connection. */
+        private static $conn = null;
+
+        /** @var string|null $host Database host. */
+        public static $host = null;
+
+        /** @var string|null $username Database username. */
+        public static $username = null;
+
+        /** @var string|null $password Database password. */
+        public static $password = null;
+
+        /** @var string|null $dbname Database name. */
+        public static $dbname = null;
+
+        /** @var mixed $error Error handling mode. [true, false, 'custom error msg'] */
+        public static $error = true;
+
+        /** @var string|null $lastError Stores the last encountered error message. */
+        private static $lastError = null;
+
+        /**
+         * Handle errors based on the PHDB::$error setting.
+         *
+         * @param string $error_msg The error message to handle.
+         * @param bool $continue Whether to continue after the error or not.
+         * @return void
+         */
+        private static function handleError($error_msg, $continue = false) {
+            self::$lastError = $error_msg;
+            if (self::$error === true) {
+                error_log($error_msg);
+                echo $error_msg;
+                if (!$continue) {
+                    die($error_msg);
+                    return false;
+                }
+            } elseif (self::$error !== false) {
+                $custom_msg = is_string(self::$error) ? self::$error : '[An error occurred] ';
+                error_log($custom_msg);
                 return [
                     'status' => false,
-                    'message' => $error_msg,
+                    'message' => $custom_msg,
                 ];
             }
-        } elseif (self::$error !== false) {
-            $custom_msg = is_string(self::$error) ? self::$error : '[An error occurred] ';
-            error_log($custom_msg);
-            return [
-                'status' => false,
-                'message' => $custom_msg,
-            ];
         }
-    }
 
-    /**
-     * Connect to the database.
-     *
-     * @return void
-     */
-    public static function connect() {
-        try {
-            self::$conn = new mysqli(self::$host, self::$username, self::$password, self::$dbname);
-            if (self::$conn->connect_error) {
-                throw new Exception("Error: " . self::$conn->connect_error . "]");
+        /**
+         * Retrieve the last error message encountered.
+         *
+         * @return string|null The last error message or null if no error.
+         */
+        public static function error() {
+            return self::$lastError;
+        }
+
+        /**
+         * Connect to the database.
+         *
+         * @return void
+         */
+        public static function connect() {
+            try {
+                self::$conn = new mysqli(self::$host, self::$username, self::$password, self::$dbname);
+                if (self::$conn->connect_error) {
+                    throw new Exception("Error: " . self::$conn->connect_error . "]");
+                }
+            } catch (Exception $e) {
+                self::handleError($e->getMessage(), false);
             }
-        } catch (Exception $e) {
-            self::handleError($e->getMessage(), false);
         }
-    }
 
-    /**
-     * Disconnect from the database.
-     *
-     * @return void
-     */
-    public static function disconnect() {
-        if (self::$conn) {
-            self::$conn->close();
-            self::$conn = null;
+        /**
+         * Disconnect from the database.
+         *
+         * @return void
+         */
+        public static function disconnect() {
+            if (self::$conn) {
+                self::$conn->close();
+                self::$conn = null;
+            }
         }
-    }
 
     /**
      * Check if a string contains potentially malicious SQL injection patterns.
