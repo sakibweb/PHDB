@@ -292,6 +292,18 @@ The `$error` property controls error handling.
 - `true` (Default): Errors are printed directly to the output, and script execution stops.  Suitable for development and debugging.
 - `false`: Errors are not displayed directly, but returned as part of the result array with `status => false` and an informative `message`. Provides more control over error handling in production environments.
 - `'Custom error message'`: Displays a custom error message.
+Handling Errors Gracefully:
+```php
+PHDB::$error = false; // Suppress errors
+
+$result = PHDB::query("SELECT * FROM invalid_table");
+
+if ($result === false) {
+    echo "Query Failed: " . PHDB::error();
+} else {
+    print_r($result);
+}
+```
 
 ## Security
 
