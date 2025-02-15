@@ -580,9 +580,9 @@
     public static function columns($table, $filter = null, $skip = null) {
         $sql = "SHOW COLUMNS FROM `$table`";
         $result = self::query($sql);
-        if ($result instanceof mysqli_result) {
+        if ($result && is_array($result)) {
             $columns = [];
-            while ($row = $result->fetch_assoc()) {
+            foreach ($result as $row) {
                 $columns[] = $row['Field'];
             }
             $filterColumns = function($columns, $patterns) {
